@@ -1,5 +1,5 @@
 # Node dependencies stage
-FROM public.ecr.aws/docker/library/node:lts-alpine AS frontend-dependencies
+FROM node:lts-alpine AS frontend-dependencies
 WORKDIR /app
 
 # Install pnpm globally (caching layer)
@@ -10,7 +10,7 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Build Nuxt (frontend) stage
-FROM public.ecr.aws/docker/library/node:lts-alpine AS frontend-builder
+FROM node:lts-alpine AS frontend-builder
 WORKDIR /app
 
 # Install pnpm globally again (it can reuse the cache if not changed)
@@ -22,7 +22,7 @@ COPY --from=frontend-dependencies /app/node_modules ./node_modules
 RUN pnpm build
 
 # Go dependencies stage
-FROM public.ecr.aws/docker/library/golang:alpine AS builder-dependencies
+FROM golang:1.22-alpine AS builder-dependencies
 WORKDIR /go/src/app
 
 # Copy go.mod and go.sum for better caching
@@ -30,7 +30,7 @@ COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
 
 # Build API stage
-FROM public.ecr.aws/docker/library/golang:alpine AS builder
+FROM golang:1.22-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG BUILD_TIME
@@ -58,15 +58,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     if [ "$TARGETARCH" = "arm" ] || [ "$TARGETARCH" = "riscv64" ];  \
     then echo "nodynamic" $TARGETOS $TARGETARCH; CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -ldflags "-s -w -X main.commit=$COMMIT -X main.buildTime=$BUILD_TIME -X main.version=$VERSION" \
-        -tags nodynamic -o /go/bin/api -v ./app/api/*.go; \
+        -tags nodynamic -o /go/bin/api -v ./app/api; \
     else \
          echo $TARGETOS $TARGETARCH; CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -ldflags "-s -w -X main.commit=$COMMIT -X main.buildTime=$BUILD_TIME -X main.version=$VERSION" \
-        -o /go/bin/api -v ./app/api/*.go; \
+        -o /go/bin/api -v ./app/api; \
     fi
 
 # Production stage
-FROM public.ecr.aws/docker/library/alpine:latest
+FROM alpine:3.20
 ENV HBOX_MODE=production
 ENV HBOX_STORAGE_CONN_STRING=file:///?no_tmp_dir=true
 ENV HBOX_STORAGE_PREFIX_PATH=data

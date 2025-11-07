@@ -33,6 +33,24 @@ func generateOrPrint(ctrl *V1Controller, w http.ResponseWriter, r *http.Request,
 	}
 }
 
+func buildLocationLabelDescription(location repo.LocationOut) string {
+	lines := []string{"Homebox Location"}
+
+	if location.Parent != nil {
+		parentName := strings.TrimSpace(location.Parent.Name)
+		if parentName != "" {
+			lines = append(lines, fmt.Sprintf("Parent: %s", parentName))
+		}
+	}
+
+	description := strings.TrimSpace(location.Description)
+	if description != "" {
+		lines = append(lines, description)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
 // HandleGetLocationLabel godoc
 //
 //	@Summary	Get Location label
@@ -57,7 +75,7 @@ func (ctrl *V1Controller) HandleGetLocationLabel() errchain.HandlerFunc {
 		}
 
 		hbURL := GetHBURL(r.Header.Get("Referer"), ctrl.url)
-		return generateOrPrint(ctrl, w, r, location.Name, "Homebox Location", fmt.Sprintf("%s/location/%s", hbURL, location.ID))
+		return generateOrPrint(ctrl, w, r, location.Name, buildLocationLabelDescription(location), fmt.Sprintf("%s/location/%s", hbURL, location.ID))
 	}
 }
 
